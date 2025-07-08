@@ -97,7 +97,7 @@ def getSeachHotelsCsrfToken():
     return viewstate
 
 
-def searchHotels(hotelName, viewState):
+def searchHotels(hotelName, viewState, cityCountry, cityCode):
     url = "https://tbrooms.me/admin/hotel-contract/hotel-list.xhtml"
 
     files = {
@@ -106,8 +106,8 @@ def searchHotels(hotelName, viewState):
         "javax.faces.partial.execute": (None, "SearchMasterHotel:FormAdminSearchHotel:masterList"),
         "javax.faces.partial.render": (None, "SearchMasterHotel:FormAdminSearchHotel:masterList"),
         "SearchMasterHotel:FormAdminSearchHotel:masterList:searchButton": (None, "SearchMasterHotel:FormAdminSearchHotel:masterList:searchButton"),
-        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_input": (None, "Istanbul, Turkey"),
-        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_hinput": (None, "IST"),
+        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_input": (None, cityCountry),
+        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_hinput": (None, cityCode),
         "SearchMasterHotel:FormAdminSearchHotel:masterList:hotelName": (None, hotelName),
         "SearchMasterHotel:FormAdminSearchHotel:masterList_rppDD": (None, "20"),
         "SearchMasterHotel:FormAdminSearchHotel:masterList_selection": (None, ""),
