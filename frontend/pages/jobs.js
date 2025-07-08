@@ -21,9 +21,9 @@ export default function JobsPage() {
           <tbody className="divide-y divide-gray-200">
             {jobs.map(j => (
               <tr key={j.id} className="bg-white">
-                <td className="px-6 py-4 whitespace-nowrap">{j.fileName}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{j.state}</td>
-                <td className="px-6 py-4 whitespace-nowrap">{new Date(j.createdAt).toLocaleString()}</td>
+                <td className="px-6 py-4 break-words">{j.fileName}</td>
+                <td className="px-6 py-4 break-words">{j.state}</td>
+                <td className="px-6 py-4 break-words">{new Date(j.createdAt).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
