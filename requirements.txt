@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pandas
+openpyxl
+httpx
+beautifulsoup4
+rapidfuzz
