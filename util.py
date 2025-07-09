@@ -40,6 +40,7 @@ searchHotelHeaders = {
 
 
 def login():
+    client.cookies.clear()
     r1 = client.get("https://tbrooms.me/login.xhtml")
 
     global jsessionId, flashRenderMapToken, backendUrl, userID
@@ -96,6 +97,57 @@ def getSeachHotelsCsrfToken():
     viewstate = soup.find("input", {"name": "javax.faces.ViewState"})["value"]
     return viewstate
 
+def searchDestination(query):
+    url = "https://tbrooms.me/admin/hotel-contract/hotel-list.xhtml"
+
+    files = {
+        "javax.faces.partial.ajax": (None, "true"),
+        "javax.faces.source": (None, "SearchMasterHotel:FormAdminSearchHotel:masterList:destination"),
+        "javax.faces.partial.execute": (None, "SearchMasterHotel:FormAdminSearchHotel:masterList:destination"),
+        "javax.faces.partial.render": (None, "SearchMasterHotel:FormAdminSearchHotel:masterList:destination"),
+        "javax.faces.behavior.event": (None, "query"),
+        "javax.faces.partial.event": (None, "query"),
+        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_query": (None, query),  # e.g. "Miami"
+        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_input": (None, query),
+        "SearchMasterHotel:FormAdminSearchHotel:masterList:destination_hinput": (None, query),
+        "javax.faces.ViewState": (None, viewState),
+    }
+
+    response = client.post(url, files=files, headers=searchHotelHeaders)
+
+    print("Status Code:", response.status_code)
+    print(response.text)
+
+    while "</redirect>" in response.text:
+        login()
+        response = client.post(url, files=files, headers=searchHotelHeaders)
+
+        print("Status Code:", response.status_code)
+        print(response.text)
+        sleep(5)
+
+    return response.text
+
+def extractDestinationAutocompleteItems(xml_text):
+    soup = BeautifulSoup(xml_text, "xml")
+    update = soup.find(
+        "update",
+        {"id": "SearchMasterHotel:FormAdminSearchHotel:masterList:destination"}
+    )
+    if not update:
+        return []
+
+    html = update.decode_contents()
+    inner = BeautifulSoup(html, "html.parser")
+
+    items = []
+    for li in inner.find_all("li"):
+        value = li.get("data-item-value")
+        label = li.get("data-item-label")
+        if value is not None and label is not None:
+            items.append((value, label))
+
+    return items
 
 def searchHotels(hotelName, viewState, cityCountry, cityCode):
     url = "https://tbrooms.me/admin/hotel-contract/hotel-list.xhtml"
@@ -131,18 +183,12 @@ def searchHotels(hotelName, viewState, cityCountry, cityCode):
 
 
 def extractHotels(xml_string):
-    """
-    Given the full <partial-response> XML as a string,
-    returns a list of dicts: [{'data_rk': ..., 'name': ..., 'address': ...}, …].
-    """
-    # 1) Parse the outer XML to grab just the CDATA block under the masterList update
     outer = BeautifulSoup(xml_string, "lxml-xml")
     upd = outer.find("update", {"id": "SearchMasterHotel:FormAdminSearchHotel:masterList"})
     if not upd or not upd.string:
         return []
     html_fragment = upd.string
 
-    # 2) Parse that fragment as HTML to get the table rows
     table = BeautifulSoup(html_fragment, "html.parser")
     rows = table.find_all("tr")
 
@@ -205,10 +251,8 @@ def extractHotelDetails(xml_string):
         coord_container = coord_icon.parent  # the <div> wrapping the icon + text + <a>
         a_tag = coord_container.find("a", href=True)
         if a_tag:
-            # href looks like ".../maps/place/41.04028,28.988235"
             coords = a_tag["href"].split("/place/")[-1]
         else:
-            # fallback: grab the text node(s) before the <a>
             texts = [t for t in coord_container.stripped_strings
                      if "," in t and not t.startswith("http")]
             coords = texts[0] if texts else ""
@@ -216,13 +260,10 @@ def extractHotelDetails(xml_string):
         details["latitude"] = coordinatesParts[0]
         details["longitude"] = coordinatesParts[1]
 
-    # Description (long text block)
     desc_div = soup.find("div", class_="u-white-space--prewrap")
     if desc_div:
-        # preserve line breaks if any
         details["description"] = desc_div.get_text("\n", strip=True)
 
-    # Images (data-src attrs)
     details["images"] = [
         img["data-src"]
         for img in soup.find_all("img", attrs={"data-src": True})
