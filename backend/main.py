@@ -5,9 +5,11 @@ from sqlalchemy.orm import Session
 from uuid import uuid4
 from pathlib import Path
 
-# Flat imports (no leading dots) so we can run uvicorn from inside backend/app
-from database import SessionLocal, engine
-import models, schemas, crud, util2
+# Use explicit relative imports so the app can be started
+# either from the project root (``uvicorn backend.main:app``)
+# or from within the ``backend`` package itself.
+from .database import SessionLocal, engine
+from . import models, schemas, crud, util2
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
