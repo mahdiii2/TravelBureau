@@ -1,7 +1,7 @@
 // pages/index.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Head from "next/head"
 import * as Popover from "@radix-ui/react-popover"
 import { Button } from "@/components/ui/button"
@@ -64,9 +64,15 @@ export default function HomePage() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [open, setOpen] = useState(false)
   const [country, setCountry] = useState("")
-  const [countryInfo, setCountryInfo] = useState<any>(null)
+  const [countryOptions, setCountryOptions] = useState<
+    { name: string; code: string; score: number }[]
+  >([])
+  const [countryInfo, setCountryInfo] = useState<{ name: string; code: string } | null>(null)
   const [hotel, setHotel] = useState("")
   const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState("")
+
+  const countryInputRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch("/get-hotel-contracts")
@@ -74,17 +80,41 @@ export default function HomePage() {
       .then(setContracts)
   }, [])
 
+  // close suggestions on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (
+        countryInputRef.current &&
+        !countryInputRef.current.contains(e.target as Node)
+      ) {
+        setCountryOptions([])
+      }
+    }
+    document.addEventListener("click", handleClick)
+    return () => document.removeEventListener("click", handleClick)
+  }, [])
+
   const handleUpload = async () => {
-    if (!file) return
+    if (!country.trim() || !hotel.trim() || !file) {
+      setError("⚠️ Please provide Country, Hotel and select a File.")
+      return
+    }
+    setError("")
+
     const form = new FormData()
     form.append("country", country)
     form.append("hotel", hotel)
     form.append("file", file)
+
     await fetch("/upload-file", { method: "POST", body: form })
+
     setOpen(false)
     setCountry("")
+    setCountryInfo(null)
+    setCountryOptions([])
     setHotel("")
     setFile(null)
+
     const refreshed = await fetch("/get-hotel-contracts").then(r => r.json())
     setContracts(refreshed)
   }
@@ -95,11 +125,17 @@ export default function HomePage() {
     getCoreRowModel: getCoreRowModel(),
   })
 
+  const isReady = country.trim() && hotel.trim() && file
+
   return (
     <>
       <Head>
         <title key="title">Hotel Contracts</title>
-        <meta key="description" name="description" content="View and upload hotel contracts" />
+        <meta
+          key="description"
+          name="description"
+          content="View and upload hotel contracts"
+        />
       </Head>
       <div className="container mx-auto p-8 space-y-8">
         <div className="flex justify-end">
@@ -108,41 +144,90 @@ export default function HomePage() {
               <Button>Upload Data</Button>
             </Popover.Trigger>
             <Popover.Portal>
-              <Popover.Content sideOffset={8} className="w-80 rounded-lg border bg-white p-6 shadow-lg space-y-4">
-                <Input
-                  placeholder="Country"
-                  value={country}
-                  onChange={async e => {
-                    const val = e.target.value
-                    setCountry(val)
-                    if (val.trim()) {
-                      const res = await fetch(`/search-countries?query=${encodeURIComponent(val)}`)
-                      setCountryInfo(await res.json())
-                    }
-                  }}
-                />
+              <Popover.Content
+                sideOffset={8}
+                className="w-80 rounded-lg border bg-white p-6 shadow-lg space-y-4"
+              >
+                {/* Country input + suggestions */}
+                <div className="relative" ref={countryInputRef}>
+                  <Input
+                    placeholder="Country"
+                    value={country}
+                    onChange={async e => {
+                      const val = e.target.value
+                      setCountry(val)
+                      setCountryInfo(null)
+                      setError("")
+
+                      if (val.trim()) {
+                        const res = await fetch(
+                          `/search-countries?query=${encodeURIComponent(val)}`
+                        )
+                        const opts = await res.json()
+                        setCountryOptions(opts)
+                      } else {
+                        setCountryOptions([])
+                      }
+                    }}
+                  />
+                  {countryOptions.length > 0 && (
+                    <ul className="absolute z-10 w-full bg-white border rounded mt-1 max-h-40 overflow-auto">
+                      {countryOptions.map(opt => (
+                        <li
+                          key={opt.code}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() => {
+                            setCountry(opt.name)
+                            setCountryInfo({ name: opt.name, code: opt.code })
+                            setCountryOptions([])
+                          }}
+                        >
+                          {opt.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Hotel text input */}
                 <Input
                   placeholder="Hotel"
                   value={hotel}
-                  onChange={async e => {
-                    const val = e.target.value
-                    setHotel(val)
-                    if (val.trim()) {
-                      const params = new URLSearchParams({
-                        query: val,
-                        cityCountry: countryInfo?.name || "",
-                        cityCode: countryInfo?.code || "",
-                      })
-                      await fetch(`/search-hotels?${params.toString()}`)
-                    }
+                  onChange={e => {
+                    setHotel(e.target.value)
+                    setError("")
                   }}
                 />
-                <Input type="file" onChange={e => setFile(e.target.files?.[0] ?? null)} />
-                <Button className="w-full" onClick={handleUpload}>Submit</Button>
+
+                {/* File picker */}
+                <Input
+                  type="file"
+                  onChange={e => {
+                    setFile(e.target.files?.[0] ?? null)
+                    setError("")
+                  }}
+                />
+
+                {error && (
+                  <p className="text-sm text-red-600 font-medium">{error}</p>
+                )}
+
+                <Button
+                  className={`
+                    w-full
+                    ${isReady
+                      ? "bg-blue-600 hover:bg-blue-700 text-white"
+                      : "bg-red-600 text-white opacity-75 cursor-not-allowed"}
+                  `}
+                  onClick={handleUpload}
+                >
+                  Submit
+                </Button>
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
         </div>
+
         <div className="rounded-lg border shadow overflow-x-auto">
           <Table className="w-full min-w-[800px]">
             <TableHeader className="bg-gray-100 sticky top-0">
@@ -152,14 +237,17 @@ export default function HomePage() {
                     <TableHead key={header.id} className="text-left py-2">
                       {header.isPlaceholder
                         ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                     </TableHead>
                   ))}
                 </TableRow>
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows.length ? (
+              {table.getRowModel().rows.length > 0 ? (
                 table.getRowModel().rows.map(row => (
                   <TableRow key={row.id} className="hover:bg-gray-50">
                     {row.getVisibleCells().map(cell => (
