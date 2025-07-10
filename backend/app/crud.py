@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from . import models, schemas
+import models, schemas
 from uuid import uuid4
 import pandas as pd
 from pathlib import Path
