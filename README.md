@@ -10,9 +10,9 @@ This project contains a FastAPI backend and a Next.js frontend.
    pip install -r requirements.txt
    ```
 3. Optionally, set `DATABASE_URL` if you are not using the default local PostgreSQL database.
-4. Start the API server:
+4. Start the API server from the project root:
    ```bash
-   uvicorn backend.main:app --reload
+   uvicorn backend.app:app --reload
    ```
 
 ## Frontend
