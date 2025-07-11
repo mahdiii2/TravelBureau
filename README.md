@@ -5,7 +5,7 @@ This project contains a FastAPI backend and a Next.js frontend.
 ## Backend
 
 1. Create a virtual environment and activate it.
-2. Install dependencies (includes HTTP/2 support for httpx):
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
