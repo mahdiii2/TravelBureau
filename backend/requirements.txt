@@ -4,6 +4,6 @@ sqlalchemy
 psycopg2-binary
 pandas
 openpyxl
-httpx
+httpx[http2]
 beautifulsoup4
 rapidfuzz
